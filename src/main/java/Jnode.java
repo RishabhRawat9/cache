@@ -1,39 +1,53 @@
 import java.nio.charset.StandardCharsets;
 import java.util.Objects;
 
-public class Jnode <K, V>{
+public class Jnode<K, V> {
+
     public int hash;
     public K key;
     public V value;
-    public Jnode<K,V> next; //coz in the bucket we store nodes and in case of collision one bucket can have multiple nodes so we store all of them using a linkedlist;
+    public Jnode<K, V> next; // coz in the bucket we store nodes and in case of collision one bucket can have
 
-    public Jnode(int hashIndex, K key, V value){
+    // multiple nodes so we store all of them using a linkedlist;
+    long ttl = -1;
+
+    public Jnode(int hashIndex, K key, V value) {
         this.hash = hashIndex;
         this.key = key;
         this.value = value;
+        // this.ttl = System.currentTimeMillis() + ttl;
+        this.next = null;
+    }
+
+    public Jnode(int hashIndex, K key, V value, long ttl) {
+        this.hash = hashIndex;
+        this.key = key;
+        this.value = value;
+        this.ttl = System.currentTimeMillis() + ttl;
         this.next = null;
     }
 
     @Override
-    public String toString(){
-
-        String val = new String((byte[]) value, StandardCharsets.UTF_8);
-        String content = String.format("(%s, %s)", key, val);
-        return content;
-
+    public String toString() {
+        String val;
+        if (value instanceof byte[]) {
+            val = new String((byte[]) value, StandardCharsets.UTF_8);
+        } else {
+            val = String.valueOf(value);
+        }
+        return String.format("(%s, %s)", key, val);
     }
 
     @Override
     public boolean equals(Object o) {
-        Jnode<K,V> node = (Jnode<K,V>)o;
-        String o_key = (String) node.key;
-        String this_key = (String) this.key;
-        if(o_key.equals(this_key)){
-            return true;
-        }
-        return false;
-
+        if (this == o) return true;
+        if (!(o instanceof Jnode)) return false;
+        Jnode<?, ?> node = (Jnode<?, ?>) o;
+        return Objects.equals(key, node.key);
     }
 
-
+    @Override
+    public int hashCode() {
+        return Objects.hash(key);
+    }
 }

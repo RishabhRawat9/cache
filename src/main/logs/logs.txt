@@ -1,0 +1,4 @@
+put 1 hello
+put we woo
+del we
+del 1
