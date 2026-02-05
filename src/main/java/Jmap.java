@@ -1,4 +1,3 @@
-import java.security.Timestamp;
 import java.util.concurrent.atomic.AtomicInteger;
 import java.util.concurrent.locks.Lock;
 import java.util.concurrent.locks.ReadWriteLock;
@@ -40,7 +39,7 @@ public class Jmap<K, V> {
     private int hashFunction(K key, int mapCapacity) {
         // so when a key is provided it returns a hash value;
         int h = Math.abs(key.hashCode());
-        //same as concurrentHahsMap;
+        // same as concurrentHahsMap;
         h += (h << 15) ^ 0xffffcd7d;
         h ^= (h >>> 10);
         h += (h << 3);
@@ -51,7 +50,7 @@ public class Jmap<K, V> {
 
     // how do i efficiently put a value with ttl?
     // do i overload the method but that would result in duplicate code;
-    //do i put a condition
+    // do i put a condition
 
     public void put(K key, V value) {
         readLock.lock();
@@ -62,7 +61,8 @@ public class Jmap<K, V> {
             boolean newNodePlaced = false;
             Jnode<K, V> node = new Jnode<>(tableIndex, key, value);
 
-            // System.out.println(Thread.currentThread().getName() + " got lock " + tableIndex);
+            // System.out.println(Thread.currentThread().getName() + " got lock " +
+            // tableIndex);
             if (table[tableIndex] == null) {
                 table[tableIndex] = node;
                 node_ct.getAndIncrement();
@@ -110,7 +110,7 @@ public class Jmap<K, V> {
         }
     }
 
-    //put/putexp on an existing key overwrites the ttl of the prev key;
+    // put/putexp on an existing key overwrites the ttl of the prev key;
     public void putexp(K key, V value, long ttl) {
         readLock.lock();
         int tableIndex = hashFunction(key, size.get());
@@ -120,7 +120,8 @@ public class Jmap<K, V> {
             boolean newNodePlaced = false;
             Jnode<K, V> node = new Jnode<>(tableIndex, key, value, ttl);
 
-            // System.out.println(Thread.currentThread().getName() + " got lock " + tableIndex);
+            // System.out.println(Thread.currentThread().getName() + " got lock " +
+            // tableIndex);
             if (table[tableIndex] == null) {
                 table[tableIndex] = node;
                 node_ct.getAndIncrement();
@@ -217,7 +218,8 @@ public class Jmap<K, V> {
                 if (value.key.equals(key) && (value.ttl == -1 || System.currentTimeMillis() <= value.ttl)) {
                     return value.value;
                 } else if (value.key.equals(key) && value.ttl != -1 && System.currentTimeMillis() > value.ttl) {
-                    //will have to manually remove the entry, can't use remove() bcoz it'll deadlock;
+                    // will have to manually remove the entry, can't use remove() bcoz it'll
+                    // deadlock;
                     if (prev == null) {
                         table[tableIndex] = value.next;
                     } else {
@@ -233,6 +235,31 @@ public class Jmap<K, V> {
             return null;
         } finally {
             /// always executes;
+            bucketLock.readLock().unlock();
+            readLock.unlock();
+        }
+    }
+
+    /**
+     * Returns the expiry time (absolute millis) for a key, or null if key doesn't
+     * exist or has no TTL.
+     * Used by TTLManager to validate stale entries before deletion.
+     */
+    public Long getExpiry(K key) {
+        readLock.lock();
+        int tableIndex = hashFunction(key, size.get());
+        ReadWriteLock bucketLock = rwLocks[tableIndex];
+        bucketLock.readLock().lock();
+        try {
+            Jnode<K, V> node = table[tableIndex];
+            while (node != null) {
+                if (node.key.equals(key)) {
+                    return node.ttl == -1 ? null : node.ttl;
+                }
+                node = node.next;
+            }
+            return null;
+        } finally {
             bucketLock.readLock().unlock();
             readLock.unlock();
         }
