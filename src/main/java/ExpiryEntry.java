@@ -1,16 +1,16 @@
 import java.util.concurrent.Delayed;
 import java.util.concurrent.TimeUnit;
 
-public class ExpiryEntry implements Delayed {
-    private final String key;
+public class ExpiryEntry<K> implements Delayed {
+    private final K key;
     private final long expiryTime; // absolute time in millis
 
-    public ExpiryEntry(String key, long expiryTime) {
+    public ExpiryEntry(K key, long expiryTime) {
         this.key = key;
         this.expiryTime = expiryTime;
     }
 
-    public String getKey() {
+    public K getKey() {
         return key;
     }
 

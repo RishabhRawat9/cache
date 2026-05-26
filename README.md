@@ -17,3 +17,12 @@ This project is a custom implementation of a thread-safe HashMap in Java. It is 
 
 
 mvn exec:java -Dexec.mainClass="KVStore"
+
+## Known Issues
+
+- **Thread Safety Violation in `get()`**: Modifies the linked list with only a read lock when lazily removing expired keys.
+- **Count Inconsistency**: When `get()` dynamically removes expired keys, it fails to decrement `node_ct`.
+- **Stale Lock Reference After Resize**: The `put` & `putexp` methods reacquire an old bucket lock (via a stale local variable) after a resize finishes, instead of looking up the new lock array.
+- **Inconsistent TTL Calculation**: `putexp` applies absolute timestamps to updated entries, but relative TTLs to newly inserted entries (unless handled inside the `Jnode` constructor, which breaks encapsulation).
+- **`resize_put` Encapsulation**: The method is marked `public` but skips bucket locking; it should be `private`.
+- **No TTL Check on `remove()`**: Forced deletions behave identically for alive keys and logically expired ones.

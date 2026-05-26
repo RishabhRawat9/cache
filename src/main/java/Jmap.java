@@ -5,10 +5,10 @@ import java.util.concurrent.locks.ReentrantReadWriteLock;
 
 public class Jmap<K, V> {
 
-    private Jnode<K, V>[] table;
+    private volatile Jnode<K, V>[] table;
     private final AtomicInteger size = new AtomicInteger(16);
     private float resize_threshold = 0.75f; // so when 75% of the capacity is filled i resize the thing right;
-    public static volatile AtomicInteger node_ct = new AtomicInteger(0);
+    public AtomicInteger node_ct = new AtomicInteger(0);
 
     private ReadWriteLock[] rwLocks;
     private ReadWriteLock globalRwLock = new ReentrantReadWriteLock();
@@ -47,10 +47,6 @@ public class Jmap<K, V> {
         h += (h << 2) + (h << 14);
         return h & (mapCapacity - 1);
     }
-
-    // how do i efficiently put a value with ttl?
-    // do i overload the method but that would result in duplicate code;
-    // do i put a condition
 
     public void put(K key, V value) {
         readLock.lock();
@@ -178,14 +174,14 @@ public class Jmap<K, V> {
             Jnode<K, V> current = table[tableIndex];
             Jnode<K, V> prev = null;
             if (current == null) {
-                throw new IllegalArgumentException("Key not found: " + key);
+                return;
             }
             while (current != null && !current.key.equals(key)) {
                 prev = current;
                 current = current.next;
             }
             if (current == null) {
-                throw new IllegalArgumentException("Key not found: " + key);
+                return; // key not found, nothing to remove;
             }
             if (prev == null) {
                 // if it's the first node only;;
@@ -218,14 +214,8 @@ public class Jmap<K, V> {
                 if (value.key.equals(key) && (value.ttl == -1 || System.currentTimeMillis() <= value.ttl)) {
                     return value.value;
                 } else if (value.key.equals(key) && value.ttl != -1 && System.currentTimeMillis() > value.ttl) {
-                    // will have to manually remove the entry, can't use remove() bcoz it'll
-                    // deadlock;
-                    if (prev == null) {
-                        table[tableIndex] = value.next;
-                    } else {
-                        prev.next = value.next;
-                    }
-                    System.out.println("removed old entry:" + value.key + " " + value.value);
+                   
+                    //dont' have to do anything if the entry is expired the ttlmanager will take care of the cleanup and the get will just return null for expired entries, so i just return null here and let the ttl manager do it;
                     return null;
                 } else {
                     prev = value;
@@ -265,23 +255,16 @@ public class Jmap<K, V> {
         }
     }
 
-    public void resize_put(K key, V value, Jnode<K, V>[] newTable) {
-        int tableIndex = hashFunction(key, newTable.length);
-        Jnode<K, V> node = new Jnode<>(tableIndex, key, value);
+    public void resize_put(Jnode<K, V> node, Jnode<K, V>[] newTable) {
+        int tableIndex = hashFunction(node.key, newTable.length);
+
         if (newTable[tableIndex] == null) {
             newTable[tableIndex] = node;
-            node_ct.getAndIncrement();
+
         } else {
             Jnode<K, V> currHeadNode = newTable[tableIndex];
-            while (currHeadNode != null) {
-                if (currHeadNode.next != null) {
-                    currHeadNode = currHeadNode.next;
-                } else {
-                    currHeadNode.next = node;
-                    node_ct.getAndIncrement();
-                    return;
-                }
-            }
+            node.next = currHeadNode;
+            newTable[tableIndex] = node;
         }
     }
 
@@ -289,14 +272,21 @@ public class Jmap<K, V> {
     private void resizeJmap() {
         // so a completely new array with twice the size is required now
         int newSize = size.get() * 2;
-        node_ct.set(0);
         Jnode<K, V>[] newTable = (Jnode<K, V>[]) new Jnode[newSize];
         for (int j = 0; j < size.get(); j++) {
             Jnode<K, V> currNode = table[j];
 
             while (currNode != null) {
-                resize_put(currNode.key, currNode.value, newTable);
+                if (currNode.ttl != -2) {
+                    resize_put(currNode, newTable);// after this the currnode is added to the new table and the link to
+                                                   // the old next is removed, so i need make the next node the current
+                                                   // head of the linked list in the old table and then move on to the
+                                                   // next node;
+                }
+                Jnode<K, V> temp = currNode;
                 currNode = currNode.next;
+                temp.next = null;
+
             }
         }
 
