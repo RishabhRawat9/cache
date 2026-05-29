@@ -1,3 +1,4 @@
+package cache;
 import java.io.BufferedReader;
 import java.io.BufferedWriter;
 import java.io.File;
@@ -17,16 +18,16 @@ public class KVStore {
     // private static ConcurrentHashMap<String, String> map = new
     // ConcurrentHashMap<>(16, 0.75f);
     private static Jmap<String, String> map = new Jmap<>(0.75f);
-    private static TTLManager ttlManager;
+    private static TTLManager<String, String> ttlManager;
     private static PrintWriter logWriter;
     private static final String LOG_FILE = "src/main/logs/logs.txt";
 
     public static void main(String[] args) throws InterruptedException {
-        ttlManager = new TTLManager(map);
-        initializeLog();
-        loadLog();
-        interactiveMode();
-        // stressTest();
+        // ttlManager = new TTLManager<String, String>(map);
+        // initializeLog();
+        // loadLog();
+        // interactiveMode();
+        stressTest();
     }
 
     private static void initializeLog() {
@@ -173,7 +174,7 @@ public class KVStore {
                             break;
                         case "count":
                         case "size":
-                            System.out.println("Node count: " + Jmap.node_ct.get());
+                            System.out.println("Node count: " + map.node_ct.get());
                             break;
                         case "help":
                             System.out.println(
@@ -200,9 +201,10 @@ public class KVStore {
     }
 
     public static void stressTest() throws InterruptedException {
+        System.out.println("running stress test... in kkvstore");
         int writers = 10;
-        int readers = 40;
-        int operationsPerThread = 1000;
+        int readers = 10;
+        int operationsPerThread = 100;
         CountDownLatch startGate = new CountDownLatch(1);
         CountDownLatch endGate = new CountDownLatch(writers + readers);
         ExecutorService executor = Executors.newFixedThreadPool(writers + readers);
@@ -247,6 +249,6 @@ public class KVStore {
         System.out.println("Test duration: " + (endTime - startTime) + "ms");
         System.out.println("Expected nodes: " + (writers * operationsPerThread));
         // System.out.println("actual nodes: " + map.size());
-        System.out.println("Actual node_ct: " + Jmap.node_ct.get());
+        System.out.println("Actual node_ct: " + map.node_ct.get());
     }
 }

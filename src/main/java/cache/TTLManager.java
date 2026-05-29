@@ -1,3 +1,4 @@
+package cache;
 import java.util.concurrent.DelayQueue;
 
 public class TTLManager<K, V> {
@@ -32,7 +33,7 @@ public class TTLManager<K, V> {
                     if (currentExpiry != null && currentExpiry == entry.getExpiryTime()) {
                         try {
                             map.remove(entry.getKey());
-                            System.out.println("[TTL] Expired and removed key: " + entry.getKey());
+                            // System.out.println("[TTL] Expired and removed key: " + entry.getKey());
                         } catch (IllegalArgumentException e) {
                             // Key was already removed, ignore
                         }

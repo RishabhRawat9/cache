@@ -1,6 +1,9 @@
 import java.util.concurrent.CountDownLatch;
 import java.util.concurrent.TimeUnit;
 
+import cache.Jmap;
+import cache.TTLManager;
+
 public class TTLTest {
     
     public static void main(String[] args) throws InterruptedException {
