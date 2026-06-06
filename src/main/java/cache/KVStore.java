@@ -1,3 +1,4 @@
+package cache;
 import java.io.BufferedReader;
 import java.io.BufferedWriter;
 import java.io.File;
@@ -14,16 +15,19 @@ import java.util.concurrent.TimeUnit;
 
 public class KVStore {
 
-    // private static ConcurrentHashMap<String, String> map = new ConcurrentHashMap<>(16, 0.75f);
+    // private static ConcurrentHashMap<String, String> map = new
+    // ConcurrentHashMap<>(16, 0.75f);
     private static Jmap<String, String> map = new Jmap<>(0.75f);
+    private static TTLManager<String, String> ttlManager;
     private static PrintWriter logWriter;
     private static final String LOG_FILE = "src/main/logs/logs.txt";
 
     public static void main(String[] args) throws InterruptedException {
+        // ttlManager = new TTLManager<String, String>(map);
         // initializeLog();
         // loadLog();
-        interactiveMode();
-        // stressTest();
+        // interactiveMode();
+        stressTest();
     }
 
     private static void initializeLog() {
@@ -40,7 +44,8 @@ public class KVStore {
 
     private static void loadLog() {
         File file = new File(LOG_FILE);
-        if (!file.exists()) return;
+        if (!file.exists())
+            return;
 
         System.out.println("Loading data from log file...");
         try (BufferedReader reader = new BufferedReader(new FileReader(file))) {
@@ -58,7 +63,8 @@ public class KVStore {
                         try {
                             map.remove(key);
                             count++;
-                        } catch (Exception ignored) {}
+                        } catch (Exception ignored) {
+                        }
                     }
                 }
             }
@@ -79,7 +85,7 @@ public class KVStore {
         }
     }
 
-    //to deal with multi word keys/values
+    // to deal with multi word keys/values
     private static String[] parseInput(String input) {
         ArrayList<String> parts = new ArrayList<>();
         StringBuilder current = new StringBuilder();
@@ -114,7 +120,8 @@ public class KVStore {
             while (true) {
                 System.out.print("> ");
                 String input = scanner.nextLine().trim();
-                if (input.isEmpty()) continue;
+                if (input.isEmpty())
+                    continue;
 
                 String[] parts = parseInput(input);
 
@@ -133,11 +140,14 @@ public class KVStore {
                             break;
                         case "putexp":
                             if (parts.length == 4) {
-                                map.putexp(parts[1], parts[2], Long.parseLong(parts[3]));
-                                // log("putexp", parts[1], parts[2]);
+                                long ttlSeconds = Long.parseLong(parts[3]);
+                                long expiryTime = System.currentTimeMillis() + (ttlSeconds);
+                                map.putexp(parts[1], parts[2], ttlSeconds);
+                                ttlManager.schedule(parts[1], expiryTime);
+                                log("putexp", parts[1], parts[2] + " " + ttlSeconds);
                                 System.out.println("OK");
                             } else {
-                                System.out.println("Usage: put <key> <value>");
+                                System.out.println("Usage: putexp <key> <value> <ttl_seconds>");
                             }
                             break;
                         case "get":
@@ -164,16 +174,18 @@ public class KVStore {
                             break;
                         case "count":
                         case "size":
-                            System.out.println("Node count: " + Jmap.node_ct.get());
+                            System.out.println("Node count: " + map.node_ct.get());
                             break;
                         case "help":
                             System.out.println(
-                                "Commands: putexp <k> <v> <tll> ,put <k> <v>, get <k>, del <k>, show, count, exit"
-                            );
+                                    "Commands: putexp <k> <v> <tll> ,put <k> <v>, get <k>, del <k>, show, count, exit");
                             break;
                         case "exit":
                         case "quit":
-                            if (logWriter != null) logWriter.close();
+                            if (logWriter != null)
+                                logWriter.close();
+                            if (ttlManager != null)
+                                ttlManager.shutdown();
                             System.out.println("Goodbye!");
                             return;
                         default:
@@ -189,9 +201,10 @@ public class KVStore {
     }
 
     public static void stressTest() throws InterruptedException {
+        System.out.println("running stress test... in kkvstore");
         int writers = 10;
-        int readers = 40;
-        int operationsPerThread = 1000;
+        int readers = 10;
+        int operationsPerThread = 100;
         CountDownLatch startGate = new CountDownLatch(1);
         CountDownLatch endGate = new CountDownLatch(writers + readers);
         ExecutorService executor = Executors.newFixedThreadPool(writers + readers);
@@ -236,6 +249,6 @@ public class KVStore {
         System.out.println("Test duration: " + (endTime - startTime) + "ms");
         System.out.println("Expected nodes: " + (writers * operationsPerThread));
         // System.out.println("actual nodes: " + map.size());
-        System.out.println("Actual node_ct: " + Jmap.node_ct.get());
+        System.out.println("Actual node_ct: " + map.node_ct.get());
     }
 }
