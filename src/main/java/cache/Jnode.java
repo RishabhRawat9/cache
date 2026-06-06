@@ -24,7 +24,7 @@ public class Jnode<K, V> {
         this.hash = hashIndex;
         this.key = key;
         this.value = value;
-        this.ttl = System.currentTimeMillis() + ttl;
+        this.ttl = ttl;
         this.next = null;
     }
 

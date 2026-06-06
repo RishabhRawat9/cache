@@ -142,8 +142,8 @@ public class KVStore {
                             if (parts.length == 4) {
                                 long ttlSeconds = Long.parseLong(parts[3]);
                                 long expiryTime = System.currentTimeMillis() + (ttlSeconds);
-                                map.putexp(parts[1], parts[2], ttlSeconds);
-                                ttlManager.schedule(parts[1], expiryTime);
+                                map.putexp(parts[1], parts[2], expiryTime);
+                                ttlManager.schedule(parts[1], expiryTime);//now both the manager and queue take the same expiry value ;
                                 log("putexp", parts[1], parts[2] + " " + ttlSeconds);
                                 System.out.println("OK");
                             } else {
@@ -174,7 +174,7 @@ public class KVStore {
                             break;
                         case "count":
                         case "size":
-                            System.out.println("Node count: " + map.node_ct.get());
+                            System.out.println("Node count: " + map.getNodeCt());
                             break;
                         case "help":
                             System.out.println(
@@ -249,6 +249,6 @@ public class KVStore {
         System.out.println("Test duration: " + (endTime - startTime) + "ms");
         System.out.println("Expected nodes: " + (writers * operationsPerThread));
         // System.out.println("actual nodes: " + map.size());
-        System.out.println("Actual node_ct: " + map.node_ct.get());
+        System.out.println("Actual node_ct: " + map.getNodeCt());
     }
 }

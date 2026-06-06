@@ -10,10 +10,14 @@ public class Jmap<K, V> {
     private volatile Jnode<K, V>[] table;
     private final AtomicInteger size = new AtomicInteger(16);
     private float resize_threshold = 0.75f;
-    public AtomicInteger node_ct = new AtomicInteger(0);
+    private final AtomicInteger node_ct = new AtomicInteger(0);
 
     private volatile ReadWriteLock[] rwLocks;
     private final StampedLock stampedLock = new StampedLock();
+
+    public int getNodeCt() {
+        return node_ct.get();
+    }
 
     @SuppressWarnings("unchecked")
     public Jmap() {
@@ -26,6 +30,9 @@ public class Jmap<K, V> {
 
     @SuppressWarnings("unchecked")
     public Jmap(float threshold) {
+        if (!(threshold > 0.0f) || Float.isNaN(threshold) || Float.isInfinite(threshold)) {
+            throw new IllegalArgumentException("threshold must be a finite value > 0");
+        }
         this.table = (Jnode<K, V>[]) new Jnode[size.get()];
         this.resize_threshold = threshold;
         this.rwLocks = new ReentrantReadWriteLock[size.get()];
@@ -115,7 +122,7 @@ public class Jmap<K, V> {
                 while (currHeadNode != null) {
                     if (currHeadNode.key.equals(key)) {
                         currHeadNode.value = value;
-                        currHeadNode.ttl = System.currentTimeMillis() + ttl;
+                        currHeadNode.ttl = ttl;
                         return;
                     } else {
                         if (currHeadNode.next != null) {
@@ -155,13 +162,15 @@ public class Jmap<K, V> {
         try {
             Jnode<K, V> current = table[tableIndex];
             Jnode<K, V> prev = null;
-            if (current == null) return;
+            if (current == null)
+                return;
 
             while (current != null && !current.key.equals(key)) {
                 prev = current;
                 current = current.next;
             }
-            if (current == null) return;
+            if (current == null)
+                return;
 
             if (prev == null) {
                 table[tableIndex] = current.next;
@@ -182,21 +191,21 @@ public class Jmap<K, V> {
             Jnode<K, V>[] localTable = table;
             ReadWriteLock[] localLocks = rwLocks;
             boolean optimisticReadFailed = false;
-            //if the the validation fails it means that resizing happened because the stampled write lock can only cause our stamp to be invalidated;
-            
+            // if the the validation fails it means that resizing happened because the
+            // stampled write lock can only cause our stamp to be invalidated;
 
             if (!stampedLock.validate(stamp)) {
-                stamp = stampedLock.readLock();//now we try with a readlock to make sure that a resize doesn't happen while we are trying to acquire the bucket lock;
+                stamp = stampedLock.readLock();// now we try with a readlock to make sure that a resize doesn't happen
+                                               // while we are trying to acquire the bucket lock;
                 optimisticReadFailed = true;
                 tableIndex = hashFunction(key, size.get());
                 localTable = table;
                 localLocks = rwLocks;
-            }//the resize has caused the buckets to be changed;
+            } // the resize has caused the buckets to be changed;
 
             ReadWriteLock bucketLock = localLocks[tableIndex];
             bucketLock.readLock().lock();
 
-            
             // resize happened between our optimistic validate and bucket lock acquisition
             if (!optimisticReadFailed && !stampedLock.validate(stamp)) {
                 bucketLock.readLock().unlock();
@@ -217,7 +226,8 @@ public class Jmap<K, V> {
                 return null;
             } finally {
                 bucketLock.readLock().unlock();
-                if (optimisticReadFailed) stampedLock.unlockRead(stamp);
+                if (optimisticReadFailed)
+                    stampedLock.unlockRead(stamp);
             }
         }
     }
@@ -257,7 +267,8 @@ public class Jmap<K, V> {
                 return null;
             } finally {
                 bucketLock.readLock().unlock();
-                if (optimisticReadFailed) stampedLock.unlockRead(stamp);
+                if (optimisticReadFailed)
+                    stampedLock.unlockRead(stamp);
             }
         }
     }

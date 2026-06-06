@@ -72,13 +72,13 @@ public class StressTest {
         System.out.println("Completed: " + completed);
         System.out.println("Exceptions: " + errors.get());
         System.out.println("Corrupt reads: " + corruptReads.get());
-        System.out.println("Final node_ct: " + map.node_ct.get());
+        System.out.println("Final node_ct: " + map.getNodeCt());
 
         if (!completed) {
             System.out.println("DEADLOCK — did not finish within 60 seconds");
         } else if (errors.get() > 0 || corruptReads.get() > 0) {
             System.out.println("FAILED");
-        } else if (map.node_ct.get() < 0) {
+        } else if (map.getNodeCt() < 0) {
             System.out.println("FAILED — negative node_ct");
         } else {
             System.out.println("PASSED");
